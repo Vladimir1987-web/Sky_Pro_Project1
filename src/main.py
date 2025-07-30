@@ -1,3 +1,4 @@
+from src.reports import spending_by_category
 from src.services import get_simple_search
 from src.utils import read_date_as_df
 from src.views import get_main_page_info
@@ -11,6 +12,9 @@ def maim():
     transactions_for_service = all_transactions.to_dict("records")
     service_result = get_simple_search(transactions_for_service, "Константин Л.")
     print(service_result)
+
+    report_result = spending_by_category(all_transactions, "Фастфуд", "2021-07-25 20:10:33")
+    print(report_result)
 
 
 if __name__ == "__main__":
