@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import datetime
 
@@ -8,23 +9,40 @@ from dotenv import load_dotenv
 from pandas import DataFrame
 from twelvedata import TDClient
 
+# Основная конфигурация logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    filename=r"C:\Training\Python-development\Project\Sky_Pro_Project3\logs\utils.log",
+    encoding="utf-8",  # Запись логов в файл
+    filemode="w",
+)
+app_logger = logging.getLogger("utils.py")
+
 
 def get_greetings() -> str:
     """Приветствие"""
-    current_date_time = datetime.now()
-    hour = current_date_time.hour
-    if hour > 0 and hour <= 6:
-        return "Доброй ночи!"
-    elif hour > 6 and hour < 12:
-        return "Доброе утро!"
-    elif hour >= 12 and hour <= 18:
-        return "Добрый день!"
-    elif hour > 18 and hour < 24:
-        return "Добрый вечер!"
+    try:
+        app_logger.info("Приветствие")
+        current_date_time = datetime.now()
+        print(type(current_date_time))
+        hour = current_date_time.hour
+
+        if hour >= 0 and hour < 6:
+            return "Доброй ночи!"
+        elif hour >= 6 and hour < 12:
+            return "Доброе утро!"
+        elif hour >= 12 and hour < 18:
+            return "Добрый день!"
+        elif hour >= 18 and hour < 24:
+            return "Добрый вечер!"
+    except Exception:
+        print("Что-то пошло не так")
 
 
 def read_date_as_df(path: str) -> DataFrame:
     """Считывает информацию из excel"""
+    app_logger.info("Считывание информацию из excel")
     df = pd.read_excel(path, dtype={"Дата операции": "object"})
     df["Дата операции"] = pd.to_datetime(df["Дата операции"], format="%d.%m.%Y %H:%M:%S")
 
@@ -33,6 +51,7 @@ def read_date_as_df(path: str) -> DataFrame:
 
 def get_card_info(data: DataFrame) -> list:
     """Выводит список словарей с информацией по картам"""
+    app_logger.info("Вывод списка словарей с информацией по картам")
     last_digits = data["Номер карты"]
     set_last_digits = set(last_digits.tolist())
     list_last_digits = list(set_last_digits)
@@ -60,11 +79,14 @@ def get_card_info(data: DataFrame) -> list:
         {"last_digits": item1, "total_spent": item2, "cashback": item3} for item1, item2, item3 in combined
     ]
 
-    return list_of_dicts
+    sorted_list_of_dicts = sorted(list_of_dicts, key=lambda values: values["last_digits"])
+
+    return sorted_list_of_dicts
 
 
 def get_top_five_max_prices(data: DataFrame) -> list:
     """Выводит список словарей топ-5 транзакций"""
+    app_logger.info("Вывод списка словарей топ-5 транзакций")
     # сортируем df
     sort_data = data.sort_values("Сумма операции").head(5)
 
@@ -80,12 +102,16 @@ def get_top_five_max_prices(data: DataFrame) -> list:
         {"date": item1, "amount": item2, "category": item3, "description": item4}
         for item1, item2, item3, item4 in combined
     ]
-    return list_of_dicts
+
+    sorted_list_of_dicts = sorted(list_of_dicts, key=lambda values: values["amount"])
+
+    return sorted_list_of_dicts
 
 
 def get_user_settings(path: str) -> dict:
     """Выводит словарь со списками валют и акций"""
-    with open(path) as f:
+    app_logger.info("Вывод словаря со списками валют и акций")
+    with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data
 
@@ -99,11 +125,12 @@ BASE_URL = "https://api.apilayer.com/exchangerates_data/latest"
 
 def conversion_currency(currency: list) -> list:
     """Выводит список словарей с курсами валют"""
+    app_logger.info("Вывод списка словарей с курсами валют")
     # Запрос к API
     result_currency = []
     for cur in currency:
         response = requests.get(
-            BASE_URL, params={"base": cur, "symbols": "RUB"}, headers={"apikey": API_KEY}, timeout=30
+            BASE_URL, params={"base": cur, "symbols": "RUB"}, headers={"apikey": API_KEY}, timeout=10
         )
         response.raise_for_status()
 
@@ -118,14 +145,13 @@ BASE_URL_STOCKS = "https://api.twelvedata.com/price"
 
 
 def conversion_stocks(prices_stocks: list) -> list:
-    """Выводит список словарей с курсами валют"""
+    """Выводит список словарей со стоимостью акций"""
+    app_logger.info("Вывод списка словарей со стоимостью акций")
     # Инициализация с помощью API-ключа
     td = TDClient(apikey=API_KEY_STOCKS)
-
     result_stocks = []
     for stock in prices_stocks:
         data = td.price(symbol=stock).as_json()
-
         result = {"stock": stock, "price": data["price"]}
         result_stocks.append(result)
     return result_stocks
@@ -143,4 +169,5 @@ if __name__ == "__main__":
     # print(get_card_info(all_transactions))
     # print(get_top_five_max_prices(all_transactions))
     # print(get_user_settings(stock_path))
+    # print(conversion_currency(currencies))
     print(conversion_stocks(stocks))
